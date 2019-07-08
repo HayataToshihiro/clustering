@@ -1,0 +1,14 @@
+   
+<launch>
+	<!-- velodyne -->
+    <include file="$(find velodyne_pointcloud)/launch/32e_points.launch" />
+	<include file="$(find velodyne_height_map)/launch/amsl_velodyne_heightmap.launch" />
+
+	<!-- clustering	 -->
+    <node pkg="clustering" type="clustering_" name="euclidean_clustering">
+        <remap from="/cloud"    to="/velodyne_obstacles"/>
+    </node>
+	<node pkg="clustering" type="pickup_cluster_" name="pickup_cluster"/>
+
+	
+</launch>
