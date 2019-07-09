@@ -153,7 +153,9 @@ template<typename T_p, typename T_c, typename T_ptr>
 void pcCallback(const PointCloud2ConstPtr msg)
 {   
     T_ptr cloud(new T_c);
+    T_ptr cloud_c(new T_c);
     pcl::fromROSMsg(*msg, *cloud);
+    pcl::fromROSMsg(*msg, *cloud_c);
 
     vector<Clusters<T_c> > cluster_array;
     if(0<cloud->points.size())
@@ -171,9 +173,13 @@ void pcCallback(const PointCloud2ConstPtr msg)
     for(size_t i=0;i<cluster_array.size();i++)
     {
         PointCloud2 pc2_cloud;
+        PointCloud2 pc2_centroid;;
         pcl::toROSMsg(cluster_array[i].points, pc2_cloud);
+        pcl::toROSMsg(cluster_array[i].centroid, pc2_centroid);
         pc2_cloud.header.frame_id = target_frame;
         pc2_cloud.header.stamp = t_;
+        pc2_centroid.header.frame_id = target_frame;
+        pc2_centroid.header.stamp = t_;
 
         amsl_recog_msgs::ObjectInfoWithROI data;
         data.header.frame_id    = target_frame;
@@ -188,6 +194,7 @@ void pcCallback(const PointCloud2ConstPtr msg)
         data.width  = cluster_array[i].data.width;
         data.height = cluster_array[i].data.height;
         data.depth  = cluster_array[i].data.depth;
+		data.centroid = pc2_centroid;;
         data.points = pc2_cloud;
         object_array.object_array.push_back(data);
     }
@@ -205,9 +212,20 @@ void pcCallback(const PointCloud2ConstPtr msg)
     pcl::toROSMsg(*cloud, output);
     output.header.frame_id = msg->header.frame_id;
     output.header.stamp = msg->header.stamp;
-    
 	pub_points.publish(output);
-    pub_cluster.publish(object_array);
+    
+	cloud_c->clear();
+    for(int i=0;i<int(cluster_array.size());i++){
+		cloud_c->push_back(cluster_array[i].centroid.points[0]);
+	}
+    sensor_msgs::PointCloud2 out_centroid;
+    pcl::toROSMsg(*cloud_c,out_centroid);
+    out_centroid.header.frame_id = msg->header.frame_id;
+    out_centroid.header.stamp = msg->header.stamp;
+	pub_centroid.publish(out_centroid);
+    
+	pub_cluster.publish(object_array);
+
 }
 
 int main(int argc, char** argv)

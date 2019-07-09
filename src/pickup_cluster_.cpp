@@ -20,6 +20,7 @@ class PickUp{
 
         ros::Publisher pub_cluster;
         ros::Publisher pub_points;
+        ros::Publisher pub_centroid;
 
         ros::Subscriber sub_cluster;
 
@@ -38,13 +39,14 @@ PickUp<T_p>::PickUp()
 
     pub_cluster  = nh.advertise<amsl_recog_msgs::ObjectInfoArray>("/cluster/objectinfo/pickup", 10);
     pub_points   = nh.advertise<sensor_msgs::PointCloud2>("/cluster/points/pickup", 1);
+    pub_centroid   = nh.advertise<sensor_msgs::PointCloud2>("/cluster/centroid/pickup", 1);
 
     nh.param<double>("max_width" , max_width,  0.6);//
     nh.param<double>("max_height", max_height, 0.8);//
     nh.param<double>("max_depth",  max_depth,  0.6);//
-    nh.param<double>("min_width" , min_width,  0.2);//
+    nh.param<double>("min_width" , min_width,  0.1);//
     nh.param<double>("min_height", min_height, 0.3);//
-    nh.param<double>("min_depth",  min_depth,  0.2);//
+    nh.param<double>("min_depth",  min_depth,  0.1);//
 }
 
 template<typename T_p>
@@ -61,7 +63,9 @@ void PickUp<T_p>::cluster_callback(const amsl_recog_msgs::ObjectInfoArrayConstPt
 
 
     typename pcl::PointCloud<T_p>::Ptr cloud(new pcl::PointCloud<T_p>);
+    typename pcl::PointCloud<T_p>::Ptr cloud_c(new pcl::PointCloud<T_p>);
     typename pcl::PointCloud<T_p>::Ptr clouds(new pcl::PointCloud<T_p>);
+    typename pcl::PointCloud<T_p>::Ptr clouds_c(new pcl::PointCloud<T_p>);
     for(size_t i=0;i<msg->object_array.size();i++)
     {
         amsl_recog_msgs::ObjectInfoWithROI cluster = msg->object_array[i];
@@ -77,6 +81,7 @@ void PickUp<T_p>::cluster_callback(const amsl_recog_msgs::ObjectInfoArrayConstPt
             data.width  = cluster.width;
             data.height = cluster.height;
             data.depth  = cluster.depth;
+			data.centroid = cluster.centroid;
             data.points = cluster.points;
             object_array.object_array.push_back(data);
 			
@@ -84,6 +89,9 @@ void PickUp<T_p>::cluster_callback(const amsl_recog_msgs::ObjectInfoArrayConstPt
 			for(int j=0;j<(int(cloud->points.size()));j++){
 				clouds->points.push_back(cloud->points[j]);
 			}
+
+    		pcl::fromROSMsg(cluster.centroid, *cloud_c);
+			clouds_c->points.push_back(cloud_c->points[0]);
         }
     }
     sensor_msgs::PointCloud2 output;
@@ -91,8 +99,14 @@ void PickUp<T_p>::cluster_callback(const amsl_recog_msgs::ObjectInfoArrayConstPt
     output.header.frame_id = msg->header.frame_id;
     output.header.stamp = time;
 
-    pub_cluster.publish(object_array);
+    sensor_msgs::PointCloud2 output_c;
+    pcl::toROSMsg(*clouds_c, output_c);
+    output_c.header.frame_id = msg->header.frame_id;
+    output_c.header.stamp = time;
+    
+	pub_cluster.publish(object_array);
     pub_points.publish(output);
+    pub_centroid.publish(output_c);
 
 }
 
